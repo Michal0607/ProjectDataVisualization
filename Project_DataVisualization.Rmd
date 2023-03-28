@@ -1,0 +1,141 @@
+---
+title: "Najlepsi Pływacy na 50m stylem dowolnym"
+author: "Michał Szulierz"
+output: 
+  html_document: 
+    fig_width: 10
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(rio)
+library(scales)
+library(gtsummary)
+library(gt)
+library(plotly)
+library(kableExtra)
+library(flextable)
+library(rvest)
+```
+
+# 1.Wstęp
+Swimrankings jest to strona internetowa na której można sprawdzić wyniki każdej osoby która startowała na zawodach pływackich. Wśród czternastu indywidualnych konkurencji pływackich występujących na Igrzyskach Olimpijskich, najkrótszą z nich jest 50 metrów stylem dowolnym. Na podstawie portalu swimrankings postaram się zaprezentować dwudziestu pięciu najlepszych pływaków na tym dystansie oraz pewne ciekawe wizualizacje
+
+```{r message=FALSE, warning=FALSE}
+url1 <- "https://www.swimrankings.net/index.php?page=rankingDetail&rankingClubId=144343390&firstPlace=1"
+pagee <- read_html(url1)
+dfs <- data.frame()
+  
+  name1 <- pagee%>%
+    html_nodes(".fullname a")%>%
+    html_text()
+  
+  YearBorn <- pagee%>%
+    html_nodes(".fullname+ .rankingPlace")%>%
+    html_text()
+  
+  Nationality <- pagee%>%
+    html_nodes("td.name")%>%
+    html_text()
+  
+  Time <- pagee%>%
+    html_nodes(".time .time")%>%
+    html_text()
+  
+  Points <- pagee%>%
+    html_nodes("td.code")%>%
+    html_text()
+    
+   
+dfs <- rbind(dfs,data.frame(name1,YearBorn,Nationality,Time,Points))
+colnames(dfs) <-c("Imię","RokUrodzenia","Narodowość","Wynik","Punkty")
+```
+# 2.Tabela Najlepszych Zawodników
+```{r}
+kbl(dfs) %>%
+  kable_paper() %>% 
+  scroll_box(width = "100%", height = "200px") 
+```
+Powyżej znajduje się tabela z top 25 pływaków na 50m stylem dowolnym na basenie krótkim(25m).
+
+
+```{r}
+zmienn <- as_data_frame(dfs,Time)
+
+
+  kbl(zmienn[c(1:16),c(1:5)])%>%
+  kable_paper(full_width = F) %>%
+  column_spec(4, color = "Blue",bold=T,background ="Orange")
+```
+Tutaj widzimy tabele z zaznaczonymi pływakami którch czas jest lepszy niż 21.20 sekundy.
+
+# 3.Różnica między najlepszymi
+```{r}
+dt2 <- dfs[1:5,1:4]
+kbl(dt2, align = "c",row.names=c(1:5)) %>%
+  kable_styling(bootstrap_options = c("striped", "hover")) %>% 
+  kable_classic( full_width = T) %>% 
+  row_spec(1, bold = T, background = "#fff438") %>% 
+  row_spec(2, bold = T, background = "#f0f0f0") %>% 
+  row_spec(3, bold = T, background = "#eb7600") %>% 
+  row_spec(0, bold = T,color = "white",background = "#292929",font_size=14,hline_after = T)
+
+```
+Powyżej widzimy tabele 5 najlepszych pływaków na tym dystansie, Najlepszy jest Benjamin Proud a różnica między 2 zawodnikiem wynosi 32 setne sekundy co daje 1.57% lepszy czas. W tej tabeli również mamy Polski akcent Pawła Juraszka.
+
+# 4.Wykres zależności czasów i zawodników
+```{r}
+wyk <- arrange(dfs, desc(Time))
+plot_ly(data = wyk, y = ~Time, x = ~name1, text = ~paste("Imię i Nazwisko: ", name1, "<br>Czas : ", Time), type = "scatter", mode = 'markers',xaxis=(tickangle = 25)) %>%
+  layout(title = "Ranking względem czasów", xaxis = list(title = "Imiona i Nazwiska"), yaxis = list(title = "Czasy"))
+```
+Z tego wykresu widoczne jest porównanie pływaków wzgędem czasów w dwóch przypadkach mają oni taki sam czas.
+
+# 5.Wykres zależności narodowości a uzyskiwanych czasów
+```{r}
+pr1 <- arrange(dfs, name1)
+
+plot_ly(data = pr1, y = ~Time, x = ~name1, text = ~paste("Imię i nazwisko: ", name1, "<br>Narodowość : ", Nationality, "<br>Rok urodzenia: ", YearBorn), type = 'bar', color = ~Nationality, colors = "YlOrRd") %>% 
+  layout(plot_bgcolor='#e5ecf6',
+             xaxis = list(
+               title='Imię i Nazwisko',
+               zerolinecolor = '#ffff',
+               zerolinewidth = 2,
+               gridcolor = 'ffff'),
+             yaxis = list(
+               title='Czas',
+               zerolinecolor = '#ffff',
+               zerolinewidth = 2,
+               gridcolor = 'ffff'))
+```
+W powyższym wykresie widzimy porównanie pływaków względem czasów a krajów z których pochodzą. 
+
+# 6.Wykres zależności uzyskanych czasów względem wieku
+```{r}
+plot_ly()%>%
+  add_lines(y = dfs$Wynik, x = dfs$RokUrodzenia)%>%
+  layout(plot_bgcolor='#e5ecf6',
+             xaxis = list(
+               title='Rok Urodzenia',
+               zerolinecolor = '#ffff',
+               zerolinewidth = 2,
+               gridcolor = 'ffff'),
+             yaxis = list(
+               title='Czas',
+               zerolinecolor = '#ffff',
+               zerolinewidth = 2,
+               gridcolor = 'ffff'))
+```
+Ostatni wykres przedstawia zależność miedzy rokiem urodzenia pływaka a jego wynikiem, nie ma reguły która by mówiła, że najstarszy pływak ma najlepszy wynik. Jeżeli wykres rośnie oznacza to że pływaków urodzonych w tym samym roku jest więcej niż jeden jeżeli maleje oznacza to, że zawodnik jest jedynym reprezentantem swojego rocznika.
+
+
+# Źródła
+
+[[https://www.swimrankings.net/index.php?page=rankingDetail&rankingClubId=144343390&firstPlace=1](https://www.swimrankings.net/index.php?page=rankingDetail&rankingClubId=144343390&firstPlace=1)]
